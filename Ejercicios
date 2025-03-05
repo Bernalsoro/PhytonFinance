@@ -1,1 +1,62 @@
+"""
+Filtro Hodrick-Prescott del PIB per cápita de España (Desde el año 2000)
 
+Este script carga datos históricos del PIB per cápita de España, aplica el filtro Hodrick-Prescott 
+para extraer la tendencia a largo plazo y visualiza los resultados junto con eventos económicos importantes.
+"""
+
+import pandas as pd
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+
+# 📌 Ruta del archivo Excel (Asegúrate de ajustar la ruta correcta)
+file_path = "C:/Users/aitor.bernal/OneDrive - HMY/Escritorio/mpd2020.xlsx"
+
+# 🔹 Cargar la hoja de datos completos
+df = pd.read_excel(file_path, sheet_name="Full data")
+
+# 🔹 Filtrar los datos solo para España
+df_spain = df[df["country"] == "Spain"].copy()
+
+# 🔹 Ordenar los datos por año
+df_spain = df_spain.sort_values(by="year")
+
+# 📌 Aplicar el filtro de Hodrick-Prescott al PIB per cápita (gdppc)
+# El filtro HP descompone una serie en ciclo y tendencia. Aquí usamos λ = 6.25 recomendado para datos anuales.
+cycle, trend = sm.tsa.filters.hpfilter(df_spain["gdppc"].dropna(), lamb=6.25)
+
+# 🔹 Agregar las series filtradas al DataFrame
+df_spain.loc[df_spain["gdppc"].notna(), "trend"] = trend
+df_spain.loc[df_spain["gdppc"].notna(), "cycle"] = cycle
+
+# 🔹 Filtrar los datos desde el año 2000 en adelante
+df_spain_filtered = df_spain[df_spain["year"] >= 2000]
+
+# 📊 Crear el gráfico
+plt.figure(figsize=(12, 6))
+plt.plot(df_spain_filtered["year"], df_spain_filtered["gdppc"], label="PIB per cápita (Original)", alpha=0.5, color="steelblue")
+plt.plot(df_spain_filtered["year"], df_spain_filtered["trend"], label="Tendencia (HP Filter)", linewidth=2, color="darkorange")
+
+# 🔹 Eventos económicos importantes en España
+events = {
+    2008: "Crisis Financiera Global",
+    2010: "Crisis de la Deuda Europea",
+    2012: "Rescate Bancario de España"
+}
+
+# 🔹 Marcar los eventos en el gráfico con líneas verticales y etiquetas
+for year, event in events.items():
+    plt.axvline(x=year, color='red', linestyle='dashed', alpha=0.7, linewidth=1.5)  # Línea discontinua roja
+    plt.text(year, df_spain_filtered["gdppc"].max() * 0.85, event, 
+             rotation=0, fontsize=10, color='red', ha='right', 
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='red'))
+
+# 📌 Etiquetas y título
+plt.xlabel("Año")
+plt.ylabel("PIB per cápita")
+plt.title("Filtro Hodrick-Prescott del PIB per cápita de España (Desde 2000) con eventos económicos")
+plt.legend()
+plt.grid(True, linestyle="--", alpha=0.6)
+
+# 🔹 Mostrar el gráfico
+plt.show()
